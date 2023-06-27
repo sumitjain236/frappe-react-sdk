@@ -139,6 +139,16 @@ export const useFrappeAuth = (options?: SWRConfiguration): {
     }
 }
 
+export const getRequestURL = (doctype: string, url: string, docname?: string | null): string => {
+    let requestURL = `${url}/api/resource/`;
+    if (docname) {
+        requestURL += `${doctype}/${docname}`;
+    } else {
+        requestURL += `${doctype}`;
+    }
+
+    return requestURL;
+}
 /**
  * Hook to fetch a document from the database
  * 
@@ -152,9 +162,9 @@ export const useFrappeAuth = (options?: SWRConfiguration): {
  */
 export const useFrappeGetDoc = <T,>(doctype: string, name?: string, swrKey?: Key, options?: SWRConfiguration): SWRResponse<FrappeDoc<T>, Error> => {
 
-    const { db } = useContext(FrappeContext) as FrappeConfig
+    const { db, url } = useContext(FrappeContext) as FrappeConfig
 
-    const swrResult = useSWR<FrappeDoc<T>, Error>(swrKey === undefined ? db.getRequestURL(doctype, name) : swrKey, () => db.getDoc<T>(doctype, name), options)
+    const swrResult = useSWR<FrappeDoc<T>, Error>(swrKey === undefined ? getRequestURL(doctype, url, name) : swrKey, () => db.getDoc<T>(doctype, name), options)
 
     return {
         ...swrResult
@@ -195,12 +205,12 @@ export const getDocListQueryString = (args?: GetDocListArgs): string => {
     }
 
     if (args?.groupBy) {
-        queryString += "group_by=" + args.groupBy + '&'
+        queryString += "group_by=" + String(args.groupBy) + '&'
     }
 
     /** Sort results by field and order  */
     if (args?.orderBy) {
-        const orderByString = `${args.orderBy?.field} ${args.orderBy?.order ?? 'asc'}`;
+        const orderByString = `${String(args.orderBy?.field)} ${args.orderBy?.order ?? 'asc'}`;
         queryString += "order_by=" + orderByString + '&'
     }
 
@@ -223,11 +233,11 @@ export const getDocListQueryString = (args?: GetDocListArgs): string => {
  * 
 * @typeParam T - The type definition of the document object
  */
-export const useFrappeGetDocList = <T,>(doctype: string, args?: GetDocListArgs, swrKey?: Key, options?: SWRConfiguration): SWRResponse<T[], Error> => {
+export const useFrappeGetDocList = <T,>(doctype: string, args?: GetDocListArgs<T>, swrKey?: Key, options?: SWRConfiguration): SWRResponse<T[], Error> => {
 
-    const { db } = useContext(FrappeContext) as FrappeConfig
+    const { db, url } = useContext(FrappeContext) as FrappeConfig
 
-    const swrResult = useSWR<T[], Error>(swrKey === undefined ? `${db.getRequestURL(doctype)}?${getDocListQueryString(args)}` : swrKey, () => db.getDocList<T>(doctype, args), options)
+    const swrResult = useSWR<T[], Error>(swrKey === undefined ? `${getRequestURL(doctype, url)}?${getDocListQueryString(args)}` : swrKey, () => db.getDocList<T>(doctype, args), options)
 
     return {
         ...swrResult
@@ -426,7 +436,7 @@ function encodeQueryData(data: Record<string, any>) {
  * @returns an object (SWRResponse) with the following properties: data (number), error, isValidating, and mutate
  * 
  */
-export const useFrappeGetDocCount = (doctype: string, filters?: Filter[], cache: boolean = false, debug: boolean = false, swrKey?: Key, options?: SWRConfiguration): SWRResponse<number, Error> => {
+export const useFrappeGetDocCount = <T,>(doctype: string, filters?: Filter<T>[], cache: boolean = false, debug: boolean = false, swrKey?: Key, options?: SWRConfiguration): SWRResponse<number, Error> => {
 
     const { url, db } = useContext(FrappeContext) as FrappeConfig
     const getUniqueURLKey = () => {
